@@ -14,7 +14,7 @@ export const RoomQuery = {
 };
 
 export const RoomMutation = {
-	roomCreateOne: RoomTC.getResolver("createOne", [
+	roomCreateNew: RoomTC.getResolver("createNew", [
 		async (next, s, a, c, i) => {
 			const res = await next(s, a, c, i);
 			const _id = res?.record?._id;

@@ -1,4 +1,5 @@
 import { User, UserTC } from "../models/user";
+import { isAuthAccess } from "./utils";
 
 export const UserQuery = {
 	userById: UserTC.getResolver("findById"),
@@ -8,6 +9,9 @@ export const UserQuery = {
 	userCount: UserTC.getResolver("count"),
 	userConnection: UserTC.getResolver("connection"),
 	userPagination: UserTC.getResolver("pagination"),
+	...isAuthAccess({
+		viewer: UserTC.getResolver("viewer"),
+	}),
 };
 
 export const UserMutation = {
@@ -19,6 +23,9 @@ export const UserMutation = {
 	userRemoveById: UserTC.getResolver("removeById"),
 	userRemoveOne: UserTC.getResolver("removeOne"),
 	userRemoveMany: UserTC.getResolver("removeMany"),
+	...isAuthAccess({
+		viewerUpdate: UserTC.getResolver("viewerUpdate"),
+	}),
 };
 
 export const UserSubscription = {};

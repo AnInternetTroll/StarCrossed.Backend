@@ -4,9 +4,6 @@ import mongoose from "mongoose";
 import mongooseTimestamp from "mongoose-timestamp";
 import config from "./config.json";
 import createError from "http-errors";
-import fs from "fs";
-import path from "path";
-import https from "https";
 import http from "http";
 
 const development = process.env.NODE_ENV === "development";
@@ -16,6 +13,15 @@ mongoose.plugin(mongooseTimestamp, {
 	createdAt: "created_at",
 	updatedAt: "updated_at",
 });
+
+import {
+	decodeAuthHeader,
+	parseToken,
+	AuthHeaderBasic,
+	AuthHeaderBearer,
+} from "./routes/auth/utils";
+import { IUser, User } from "./models/user";
+import { IAccessToken } from "./models/access_token";
 
 import schema from "./schemas";
 
@@ -41,10 +47,44 @@ const server = new ApolloServer({
 	playground: true,
 	tracing: true,
 	introspection: true,
-	context: ({ req }) => {
-		// Context logic here
-		// Specifically authentification verification
-		return req;
+	context: async ({ req, res }) => {
+		const auth: string =
+			req?.headers?.authorization || req?.cookies?.authorization || "";
+		let header: AuthHeaderBasic | AuthHeaderBearer;
+		try {
+			header = decodeAuthHeader(auth);
+		} catch (err) {
+			// This is what happens if there is no auth
+			header = null;
+		}
+		let user: IUser | null = null;
+		if (header)
+			switch (header.type) {
+				case "Basic":
+					user = await User.findOne({
+						username: header.username,
+						password: header.password,
+					}).exec();
+					if (!user) throw createError(403, "Wrong username or password");
+					break;
+				case "Bearer":
+					let token: IAccessToken | false;
+					try {
+						token = await parseToken(header.token, true);
+					} catch (err) {
+						if (err.name === "TokenExpiredError")
+							throw createError(403, "Token has expired.");
+						else if (err.name === "JsonWebTokenError")
+							throw createError(403, "Token has been tampered with.");
+						else throw createError(500, err);
+					}
+					if (token && typeof token.user !== "string") user = token.user;
+					else throw createError(403, "Invalid token, please try again");
+					break;
+				default:
+					break;
+			}
+		return { req, res, user };
 	},
 });
 
@@ -76,23 +116,8 @@ app.use(
 	}
 );
 
-let httpServer: http.Server;
-
-if (!development) {
-	httpServer = http.createServer(app);
-} else {
-	httpServer = https.createServer(
-		{
-			key: fs.readFileSync(path.join(__dirname, "..", "confs", "./server.key")),
-			cert: fs.readFileSync(
-				path.join(__dirname, "..", "confs", "./server.cert")
-			),
-		},
-		app
-	);
-}
+let httpServer = http.createServer(app);
 server.installSubscriptionHandlers(httpServer);
-
 httpServer.listen(config.port, () => {
-	console.log(`Online at ${development ? "https" : "http"}://localhost:${config.port}/`);
+	console.log(`Online at http://localhost:${config.port}/`);
 });
