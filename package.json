@@ -4,7 +4,9 @@
 	"main": "src/app.ts",
 	"license": "MIT",
 	"dependencies": {
+		"apollo-server-errors": "^2.5.0",
 		"apollo-server-express": "^2.22.2",
+		"cors": "^2.8.5",
 		"express": "5.0.0-alpha.8",
 		"flakeid": "^1.0.0",
 		"graphql": "^15.5.0",
@@ -28,6 +30,7 @@
 	},
 	"devDependencies": {
 		"@types/concurrently": "^6",
+		"@types/cors": "^2",
 		"@types/express": "^4.17.11",
 		"@types/http-errors": "^1.8.0",
 		"@types/jsonwebtoken": "^8.5.1",

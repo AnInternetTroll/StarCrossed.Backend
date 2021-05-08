@@ -44,6 +44,26 @@ export const RoomTC = composeWithMongoose(Room, {
 });
 
 RoomTC.addResolver({
+	type: [RoomTC],
+	name: "rooms",
+	args: {
+		description: "String",
+		name: "String",
+		_id: "String",
+	},
+	resolve: async ({
+		context,
+		args,
+	}: {
+		context: ExpressContext;
+		args: any;
+	}): Promise<IRoom[]> => await Room.find({
+			...args,
+			members: context.user?.id,
+		}).exec(),
+});
+
+RoomTC.addResolver({
 	type: RoomTC,
 	name: "createNew",
 	args: {
@@ -51,7 +71,13 @@ RoomTC.addResolver({
 		name: "String!",
 		members: "[String]",
 	},
-	resolve: async ({ context, args }: { context: ExpressContext, args: any }): Promise<IRoom> => {
+	resolve: async ({
+		context,
+		args,
+	}: {
+		context: ExpressContext;
+		args: any;
+	}): Promise<IRoom> => {
 		const room = new Room({
 			owner: context.user!.id || context.user,
 			...args,
@@ -59,5 +85,5 @@ RoomTC.addResolver({
 		await room.save();
 		// @ts-ignore If the statement above doesn't throw an error then there will definetly be a room with this ID
 		return await Room.findById(room.id).exec();
-	}
-})
+	},
+});
