@@ -1,10 +1,12 @@
-import { ApolloServer } from "apollo-server-express";
+import { ApolloServer, UserInputError } from "apollo-server-express";
+import { ApolloError } from 'apollo-server-errors';
 import express, { NextFunction, Request, Response } from "express";
 import mongoose from "mongoose";
 import mongooseTimestamp from "mongoose-timestamp";
 import config from "./config.json";
 import createError from "http-errors";
 import http from "http";
+import cors from "cors";
 
 const development = process.env.NODE_ENV === "development";
 // These stuff should be set before loading any schemes
@@ -50,7 +52,7 @@ const server = new ApolloServer({
 	context: async ({ req, res }) => {
 		const auth: string =
 			req?.headers?.authorization || req?.cookies?.authorization || "";
-		let header: AuthHeaderBasic | AuthHeaderBearer;
+		let header: AuthHeaderBasic | AuthHeaderBearer | null;
 		try {
 			header = decodeAuthHeader(auth);
 		} catch (err) {
@@ -65,7 +67,7 @@ const server = new ApolloServer({
 						username: header.username,
 						password: header.password,
 					}).exec();
-					if (!user) throw createError(403, "Wrong username or password");
+					if (!user) throw new UserInputError("Wrong username or password");
 					break;
 				case "Bearer":
 					let token: IAccessToken | false;
@@ -73,13 +75,13 @@ const server = new ApolloServer({
 						token = await parseToken(header.token, true);
 					} catch (err) {
 						if (err.name === "TokenExpiredError")
-							throw createError(403, "Token has expired.");
+							throw new ApolloError("Token has expired.", "TOKEN_EXPIRE");
 						else if (err.name === "JsonWebTokenError")
-							throw createError(403, "Token has been tampered with.");
-						else throw createError(500, err);
+							throw new ApolloError("Token has been tampered with.", "TOKEN_INVALID");
+						else throw new Error(err);
 					}
 					if (token && typeof token.user !== "string") user = token.user;
-					else throw createError(403, "Invalid token, please try again");
+					else throw new ApolloError("Invalid token, please try again", "TOKEN_INVALID");
 					break;
 				default:
 					break;
@@ -88,9 +90,14 @@ const server = new ApolloServer({
 	},
 });
 
+app.use(cors());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
+app.use("/api/auth", AuthRouter);
+
 server.applyMiddleware({
 	app,
-	path: "/graphql",
+	path: "/api/graphql",
 	cors: true,
 	onHealthCheck: () =>
 		new Promise((resolve, reject) => {
@@ -101,9 +108,7 @@ server.applyMiddleware({
 			}
 		}),
 });
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
-app.use("/auth", AuthRouter);
+
 app.use((req, res, next) => next(createError(404)));
 // Error handler
 app.use(

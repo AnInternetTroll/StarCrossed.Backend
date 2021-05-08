@@ -1,16 +1,20 @@
 import { Room, RoomTC } from "../models/room";
 import { PubSub } from "graphql-subscriptions";
-
+import { adminAccess, isAuthAccess } from "./utils";
 const pubsub = new PubSub();
 
 export const RoomQuery = {
-	roomById: RoomTC.getResolver("findById"),
-	roomByIds: RoomTC.getResolver("findByIds"),
-	room: RoomTC.getResolver("findOne"),
-	rooms: RoomTC.getResolver("findMany"),
-	roomCount: RoomTC.getResolver("count"),
-	roomConnection: RoomTC.getResolver("connection"),
-	roomPagination: RoomTC.getResolver("pagination"),
+	...isAuthAccess({
+		room: RoomTC.getResolver("findOne"),
+		rooms: RoomTC.getResolver("rooms"),
+	}),
+	...adminAccess({
+		roomById: RoomTC.getResolver("findById"),
+		roomByIds: RoomTC.getResolver("findByIds"),
+		roomCount: RoomTC.getResolver("count"),
+		roomConnection: RoomTC.getResolver("connection"),
+		roomPagination: RoomTC.getResolver("pagination"),
+	}),
 };
 
 export const RoomMutation = {
@@ -22,13 +26,15 @@ export const RoomMutation = {
 			return res;
 		},
 	]),
-	roomCreateMany: RoomTC.getResolver("createMany"),
-	roomUpdateById: RoomTC.getResolver("updateById"),
-	roomUpdateOne: RoomTC.getResolver("updateOne"),
-	roomUpdateMany: RoomTC.getResolver("updateMany"),
-	roomRemoveById: RoomTC.getResolver("removeById"),
-	roomRemoveOne: RoomTC.getResolver("removeOne"),
-	roomRemoveMany: RoomTC.getResolver("removeMany"),
+	...adminAccess({
+		roomCreateMany: RoomTC.getResolver("createMany"),
+		roomUpdateById: RoomTC.getResolver("updateById"),
+		roomUpdateOne: RoomTC.getResolver("updateOne"),
+		roomUpdateMany: RoomTC.getResolver("updateMany"),
+		roomRemoveById: RoomTC.getResolver("removeById"),
+		roomRemoveOne: RoomTC.getResolver("removeOne"),
+		roomRemoveMany: RoomTC.getResolver("removeMany"),
+	}),
 };
 
 export const RoomSubscription = {
