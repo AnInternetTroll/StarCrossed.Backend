@@ -2,6 +2,7 @@ import { Schema, model, Document } from "mongoose";
 import { composeWithMongoose } from "graphql-compose-mongoose";
 import { Id } from "./common";
 import { ExpressContext } from "apollo-server-express";
+import { UserTC } from "./user";
 
 export interface IRoom extends Document {
 	id: string;
@@ -43,6 +44,43 @@ export const RoomTC = composeWithMongoose(Room, {
 		"A room, also known as a channel, is where users send messages. ",
 });
 
+RoomTC.addRelation("owner", {
+	resolver: () => UserTC.getResolver("findById"),
+	prepareArgs: {
+		_id: (source) => source.owner,
+	},
+	projection: { owner: 1 },
+});
+
+RoomTC.addRelation("members", {
+	resolver: () => UserTC.getResolver("findByIds"),
+	prepareArgs: {
+		_ids: (source) => source.members || [],
+	},
+	projection: { members: 1 },
+});
+
+RoomTC.addResolver({
+	type: [RoomTC],
+	name: "rooms",
+	args: {
+		description: "String",
+		name: "String",
+		_id: "String",
+	},
+	resolve: async ({
+		context,
+		args,
+	}: {
+		context: ExpressContext;
+		args: any;
+	}): Promise<IRoom[]> =>
+		await Room.find({
+			...args,
+			members: context.user?.id,
+		}).exec(),
+});
+
 RoomTC.addResolver({
 	type: RoomTC,
 	name: "createNew",
@@ -51,7 +89,13 @@ RoomTC.addResolver({
 		name: "String!",
 		members: "[String]",
 	},
-	resolve: async ({ context, args }: { context: ExpressContext, args: any }): Promise<IRoom> => {
+	resolve: async ({
+		context,
+		args,
+	}: {
+		context: ExpressContext;
+		args: any;
+	}): Promise<IRoom> => {
 		const room = new Room({
 			owner: context.user!.id || context.user,
 			...args,
@@ -59,5 +103,5 @@ RoomTC.addResolver({
 		await room.save();
 		// @ts-ignore If the statement above doesn't throw an error then there will definetly be a room with this ID
 		return await Room.findById(room.id).exec();
-	}
-})
+	},
+});
