@@ -1,5 +1,5 @@
 import { ApolloServer, UserInputError } from "apollo-server-express";
-import { ApolloError } from 'apollo-server-errors';
+import { ApolloError } from "apollo-server-errors";
 import express, { NextFunction, Request, Response } from "express";
 import mongoose from "mongoose";
 import mongooseTimestamp from "mongoose-timestamp";
@@ -77,11 +77,18 @@ const server = new ApolloServer({
 						if (err.name === "TokenExpiredError")
 							throw new ApolloError("Token has expired.", "TOKEN_EXPIRE");
 						else if (err.name === "JsonWebTokenError")
-							throw new ApolloError("Token has been tampered with.", "TOKEN_INVALID");
+							throw new ApolloError(
+								"Token has been tampered with.",
+								"TOKEN_INVALID"
+							);
 						else throw new Error(err);
 					}
 					if (token && typeof token.user !== "string") user = token.user;
-					else throw new ApolloError("Invalid token, please try again", "TOKEN_INVALID");
+					else
+						throw new ApolloError(
+							"Invalid token, please try again",
+							"TOKEN_INVALID"
+						);
 					break;
 				default:
 					break;
