@@ -2,6 +2,7 @@ import { Schema, model, Document } from "mongoose";
 import { composeWithMongoose } from "graphql-compose-mongoose";
 import { Id } from "./common";
 import { ExpressContext } from "apollo-server-express";
+import { UserTC } from "./user";
 
 export interface IRoom extends Document {
 	id: string;
@@ -43,6 +44,22 @@ export const RoomTC = composeWithMongoose(Room, {
 		"A room, also known as a channel, is where users send messages. ",
 });
 
+RoomTC.addRelation("owner", {
+	resolver: () => UserTC.getResolver("findById"),
+	prepareArgs: {
+		_id: (source) => source.owner,
+	},
+	projection: { owner: 1 },
+});
+
+RoomTC.addRelation("members", {
+	resolver: () => UserTC.getResolver("findByIds"),
+	prepareArgs: {
+		_ids: (source) => source.members || [],
+	},
+	projection: { members: 1 },
+});
+
 RoomTC.addResolver({
 	type: [RoomTC],
 	name: "rooms",
@@ -57,7 +74,8 @@ RoomTC.addResolver({
 	}: {
 		context: ExpressContext;
 		args: any;
-	}): Promise<IRoom[]> => await Room.find({
+	}): Promise<IRoom[]> =>
+		await Room.find({
 			...args,
 			members: context.user?.id,
 		}).exec(),
