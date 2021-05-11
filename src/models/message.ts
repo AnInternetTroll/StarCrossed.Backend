@@ -1,8 +1,8 @@
 import { Schema, model, Document } from "mongoose";
 import { composeWithMongoose } from "graphql-compose-mongoose";
 import { Id } from "./common";
-import { IUser } from "./user";
-import { IRoom, Room } from "./room";
+import { IUser, UserTC } from "./user";
+import { IRoom, Room, RoomTC } from "./room";
 import { ExpressContext } from "apollo-server-express";
 
 export interface IMessage extends Document {
@@ -35,6 +35,22 @@ export const Message = model<IMessage>("message", messageSchema);
 
 export const MessageTC = composeWithMongoose(Message, {
 	description: "A message is what users send in rooms. ",
+});
+
+MessageTC.addRelation("author", {
+	resolver: () => UserTC.getResolver("findById"),
+	prepareArgs: {
+		_id: (source) => source.author,
+	},
+	projection: { author: 1 },
+});
+
+MessageTC.addRelation("room", {
+	resolver: () => RoomTC.getResolver("findById"),
+	prepareArgs: {
+		_id: (source) => source.room,
+	},
+	projection: { room: 1 },
 });
 
 MessageTC.addResolver({

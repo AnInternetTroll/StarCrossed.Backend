@@ -58,6 +58,14 @@ UserTC.addResolver({
 	resolve: ({ context }: { context: ExpressContext }) => context?.user,
 });
 
+UserTC.addRelation("friends", {
+	resolver: () => UserTC.getResolver("findByIds"),
+	prepareArgs: {
+		_ids: (source) => source.friends,
+	},
+	projection: { friends: 1 },
+});
+
 UserTC.addResolver({
 	name: "viewerUpdate",
 	type: UserTC,
