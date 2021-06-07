@@ -1,5 +1,7 @@
-import { Message, MessageTC } from "../models/message";
+import { Message, MessageTC, IMessage } from "../models/message";
 import { PubSub } from "graphql-subscriptions";
+import { withFilter } from "apollo-server-express";
+import { Room } from "../models/room";
 
 const pubsub = new PubSub();
 
@@ -7,7 +9,7 @@ export const MessageQuery = {
 	messageById: MessageTC.getResolver("findById"),
 	messageByIds: MessageTC.getResolver("findByIds"),
 	message: MessageTC.getResolver("findOne"),
-	messages: MessageTC.getResolver("findMany"),
+	messages: MessageTC.getResolver("messages"),
 	messageCount: MessageTC.getResolver("count"),
 	messageConnection: MessageTC.getResolver("connection"),
 	messagePagination: MessageTC.getResolver("pagination"),
@@ -16,10 +18,11 @@ export const MessageQuery = {
 export const MessageMutation = {
 	messagePost: MessageTC.getResolver("postOne", [
 		async (next, s, a, c, i) => {
-			const res = await next(s, a, c, i);
-			const _id = res?.record?._id;
-			if (_id) pubsub.publish("MESSAGE_ADDED", _id);
-			return res;
+			const msg = await next(s, a, c, i);
+			const room = await Room.findById(msg._id);
+			if (msg && room)
+				pubsub.publish("MESSAGE_ADDED", { msg, context: c, room });
+			return msg;
 		},
 	]),
 	messageCreateMany: MessageTC.getResolver("createMany"),
@@ -34,7 +37,15 @@ export const MessageMutation = {
 export const MessageSubscription = {
 	messageAdded: {
 		type: MessageTC,
-		resolve: (_id: string) => Message.findById(_id),
-		subscribe: () => pubsub.asyncIterator(["MESSAGE_ADDED"]),
+		args: {
+			room: "String!",
+		},
+		resolve: ({ msg }: { msg: IMessage }) => msg,
+		subscribe: withFilter(
+			() => pubsub.asyncIterator(["MESSAGE_ADDED"]),
+			(payload, variables) =>
+				payload.room.members.includes(payload.context.user._id) &&
+				payload.msg.room === variables.room
+		),
 	},
 };

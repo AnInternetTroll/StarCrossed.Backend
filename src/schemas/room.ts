@@ -26,6 +26,7 @@ export const RoomMutation = {
 			return res;
 		},
 	]),
+	addMemberToRoom: RoomTC.getResolver("addMemberToRoom"),
 	...adminAccess({
 		roomCreateMany: RoomTC.getResolver("createMany"),
 		roomUpdateById: RoomTC.getResolver("updateById"),

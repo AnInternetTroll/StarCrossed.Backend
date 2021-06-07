@@ -85,3 +85,29 @@ MessageTC.addResolver({
 		return await Message.findById(message.id).exec();
 	},
 });
+
+MessageTC.addResolver({
+	name: "messages",
+	type: [MessageTC],
+	args: {
+		room: "String!",
+	},
+	resolve: async ({
+		context,
+		args,
+	}: {
+		context: ExpressContext;
+		args: any;
+	}): Promise<IMessage[]> => {
+		if (!context.user) throw new Error("No user logged in");
+		const room = await Room.findById(args.room);
+		if (!room) throw new Error("Invalid room provided.");
+		if (
+			!room.members.includes(
+				typeof context.user === "string" ? context.user : context.user.id
+			)
+		)
+			throw new Error("Invalid room provided.");
+		return await Message.find({ room: room.id }).exec();
+	},
+});
